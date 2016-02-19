@@ -117,7 +117,7 @@ class OAuth extends ApiAuth implements AuthInterface
     protected $_request_token_url;
 
     /**
-     * If set to true, $_SESSION['debug'] will be populated
+     * If set to true, _SESSION['debug'] will be populated
      *
      * @var bool
      */
@@ -327,13 +327,14 @@ class OAuth extends ApiAuth implements AuthInterface
     }
 
     /**
-     * Returns $_SESSION['oauth']['debug'] if $this->_debug = true
+     * Returns _SESSION['oauth']['debug'] if $this->_debug = true
      *
      * @return array
      */
     public function getDebugInfo()
     {
-        return ($this->_debug && !empty($_SESSION['oauth']['debug'])) ? $_SESSION['oauth']['debug'] : array();
+
+        return ($this->_debug && !empty(session('oauth.debug'))) ? session('oauth.debug') : array();
     }
 
     /**
@@ -401,7 +402,7 @@ class OAuth extends ApiAuth implements AuthInterface
                 $this->log('authorizing with OAuth1.0a spec');
 
                 //Request token and authorize app
-                if (!isset($_GET['oauth_token']) && !isset($_GET['oauth_verifier'])) {
+                if (!request()->has('oauth_token') && !request()->has('oauth_verifier')){
                     $this->log('initializing authorization');
 
                     //Request token
@@ -413,14 +414,14 @@ class OAuth extends ApiAuth implements AuthInterface
                 }
 
                 //Request access token
-                if ($_GET['oauth_token'] != $_SESSION['oauth']['token']) {
-                    unset($_SESSION['oauth']['token'], $_SESSION['oauth']['token_secret']);
+                if (request('oauth_token') != session('oauth')['token']) {
+                    session()->forget('oauth');
 
                     return false;
                 }
 
                 $this->requestAccessToken();
-                unset($_SESSION['oauth']['token'], $_SESSION['oauth']['token_secret']);
+                session()->forget('oauth');
 
                 return true;
             }
@@ -429,24 +430,25 @@ class OAuth extends ApiAuth implements AuthInterface
             $this->log('authorizing with OAuth2 spec');
 
             //Authorize app
-            if (!isset($_GET['state']) && !isset($_GET['code'])) {
+            if (!request()->has('state') && !request()->has('code')){
                 $this->authorize($this->_scope);
 
                 return false;
             }
 
             if ($this->_debug) {
-                $_SESSION['oauth']['debug']['received_state'] = $_GET['state'];
+                $session_debug['oauth']['debug']['received_state'] = request('state');
+                session($session_debug);
             }
 
             //Request an access token
-            if ($_GET['state'] != $_SESSION['oauth']['state']) {
-                unset($_SESSION['oauth']['state']);
+            if (request('state') != session('oauth.state')) {
+                session()->forget('oauth.state');
 
                 return false;
             }
 
-            unset($_SESSION['oauth']['state']);
+            session()->forget('oauth.state');
             $this->requestAccessToken('POST', array(), 'json');
 
             return true;
@@ -477,19 +479,23 @@ class OAuth extends ApiAuth implements AuthInterface
         if (is_array($params) && isset($params['oauth_token']) && isset($params['oauth_token_secret'])) {
             $this->log('token set as '.$params['oauth_token']);
 
-            $_SESSION['oauth']['token']        = $params['oauth_token'];
-            $_SESSION['oauth']['token_secret'] = $params['oauth_token_secret'];
+
+
+            $SESSION['oauth']['token']        = $params['oauth_token'];
+            $SESSION['oauth']['token_secret'] = $params['oauth_token_secret'];
 
             if ($this->_debug) {
-                $_SESSION['oauth']['debug']['token']        = $params['oauth_token'];
-                $_SESSION['oauth']['debug']['token_secret'] = $params['oauth_token_secret'];
+                $SESSION['oauth']['debug']['token']        = $params['oauth_token'];
+                $SESSION['oauth']['debug']['token_secret'] = $params['oauth_token_secret'];
             }
+            session($SESSION);
         } else {
             //Throw exception if the required parameters were not found
             $this->log('request did not return oauth tokens');
 
             if ($this->_debug) {
-                $_SESSION['oauth']['debug']['response'] = $params;
+                $SESSION['oauth']['debug']['response'] = $params;
+                session($SESSION);
             }
 
             if (is_array($params)) {
@@ -525,7 +531,7 @@ class OAuth extends ApiAuth implements AuthInterface
             //OAuth 1.0
             $this->log('using OAuth1.0a spec');
 
-            $parameters = array('oauth_verifier' => $_GET['oauth_verifier']);
+            $parameters = array('oauth_verifier' => request('oauth_verifier'));
             $parameters = array_merge($parameters, $params);
         } else {
             //OAuth 2.0
@@ -537,9 +543,9 @@ class OAuth extends ApiAuth implements AuthInterface
                 'client_secret' => $this->_client_secret,
                 'grant_type'    => 'authorization_code'
             );
-            
-            if (isset($_GET['code'])) {
-                $parameters['code'] = $_GET['code'];
+
+            if(request()->has('code')){
+                $parameters['code'] = request('code');
             }
 
             if (strlen($this->_refresh_token) > 0) {
@@ -572,8 +578,9 @@ class OAuth extends ApiAuth implements AuthInterface
                     $this->_access_token_updated = true;
 
                     if ($this->_debug) {
-                        $_SESSION['oauth']['debug']['tokens']['access_token']        = $params['oauth_token'];
-                        $_SESSION['oauth']['debug']['tokens']['access_token_secret'] = $params['oauth_token_secret'];
+                        $SESSION['oauth']['debug']['tokens']['access_token']        = $params['oauth_token'];
+                        $SESSION['oauth']['debug']['tokens']['access_token_secret'] = $params['oauth_token_secret'];
+                        session($SESSION);
                     }
 
                     return true;
@@ -590,10 +597,11 @@ class OAuth extends ApiAuth implements AuthInterface
                     $this->_access_token_updated = true;
 
                     if ($this->_debug) {
-                        $_SESSION['oauth']['debug']['tokens']['access_token']  = $params['access_token'];
-                        $_SESSION['oauth']['debug']['tokens']['expires_in']    = $params['expires_in'];
-                        $_SESSION['oauth']['debug']['tokens']['token_type']    = $params['token_type'];
-                        $_SESSION['oauth']['debug']['tokens']['refresh_token'] = $params['refresh_token'];
+                        $SESSION['oauth']['debug']['tokens']['access_token']  = $params['access_token'];
+                        $SESSION['oauth']['debug']['tokens']['expires_in']    = $params['expires_in'];
+                        $SESSION['oauth']['debug']['tokens']['token_type']    = $params['token_type'];
+                        $SESSION['oauth']['debug']['tokens']['refresh_token'] = $params['refresh_token'];
+                        session($SESSION);
                     }
 
                     return true;
@@ -604,7 +612,8 @@ class OAuth extends ApiAuth implements AuthInterface
         $this->log('response did not have an access token');
 
         if ($this->_debug) {
-            $_SESSION['oauth']['debug']['response'] = $params;
+            $SESSION['oauth']['debug']['response'] = $params;
+            session($SESSION);
         }
 
         if (is_array($params)) {
@@ -634,7 +643,7 @@ class OAuth extends ApiAuth implements AuthInterface
         //Build authorization URL
         if ($this->isOauth1()) {
             //OAuth 1.0
-            $authUrl .= '?oauth_token='.$_SESSION['oauth']['token'];
+            $authUrl .= '?oauth_token='.session('oauth.token');
 
             if (!empty($this->_callback)) {
                 $authUrl .= '&oauth_callback=' . urlencode($this->_callback);
@@ -644,10 +653,11 @@ class OAuth extends ApiAuth implements AuthInterface
             //OAuth 2.0
             $authUrl .= '?client_id='.$this->_client_id.'&redirect_uri='.urlencode($this->_callback);
             $state                      = md5(time().mt_rand());
-            $_SESSION['oauth']['state'] = $state;
+            $SESSION['oauth']['state'] = $state;
             if ($this->_debug) {
-                $_SESSION['oauth']['debug']['generated_state'] = $state;
+                $SESSION['oauth']['debug']['generated_state'] = $state;
             }
+            session($SESSION);
 
             $authUrl .= '&state='.$state.'&scope='.implode($scope_separator, $scope).$attach;
             $authUrl .= '&response_type='.$this->_redirect_type;
@@ -682,12 +692,11 @@ class OAuth extends ApiAuth implements AuthInterface
 
             //Get standard OAuth headers
             $headers = $this->getOauthHeaders($includeCallback);
-
-            if ($includeVerifier && isset($_GET['oauth_verifier'])) {
-                $headers['oauth_verifier'] = $_GET['oauth_verifier'];
+            if ($includeVerifier && request()->has('oauth_verifier')) {
+                $headers['oauth_verifier'] = request('oauth_verifier');
 
                 if ($this->_debug) {
-                    $_SESSION['oauth']['debug']['oauth_verifier'] = $_GET['oauth_verifier'];
+                    $session_debug['oauth']['debug']['oauth_verifier'] = request('oauth_verifier');
                 }
             }
 
@@ -699,8 +708,9 @@ class OAuth extends ApiAuth implements AuthInterface
             $header                     = array($this->buildAuthorizationHeader($headers), 'Expect:');
 
             if ($this->_debug) {
-                $_SESSION['oauth']['debug']['basestring'] = $base_info;
-                $_SESSION['oauth']['debug']['headers']    = $headers;
+                $SESSION['oauth']['debug']['basestring'] = $base_info;
+                $SESSION['oauth']['debug']['headers']    = $headers;
+                session($SESSION);
             }
         } else {
             //OAuth 2.0
@@ -760,9 +770,10 @@ class OAuth extends ApiAuth implements AuthInterface
         curl_close($curl);
 
         if ($this->_debug) {
-            $_SESSION['oauth']['debug']['info']            = $info;
-            $_SESSION['oauth']['debug']['returnedHeaders'] = $header;
-            $_SESSION['oauth']['debug']['returnedBody']    = $body;
+            $SESSION['oauth']['debug']['info']            = $info;
+            $SESSION['oauth']['debug']['returnedHeaders'] = $header;
+            $SESSION['oauth']['debug']['returnedBody']    = $body;
+            session($SESSION);
         }
 
         $responseGood = false;
@@ -801,8 +812,8 @@ class OAuth extends ApiAuth implements AuthInterface
     {
         if (isset($this->_access_token_secret) && strlen($this->_access_token_secret) > 0) {
             $composite_key = $this->encode($this->_client_secret).'&'.$this->encode($this->_access_token_secret);
-        } elseif (isset($_SESSION['oauth']['token_secret'])) {
-            $composite_key = $this->encode($this->_client_secret).'&'.$this->encode($_SESSION['oauth']['token_secret']);
+        } elseif (session()->has('oauth.token_secret')) {
+            $composite_key = $this->encode($this->_client_secret).'&'.$this->encode(session('oauth.token_secret'));
         } else {
             $composite_key = $this->encode($this->_client_secret).'&';
         }
@@ -829,8 +840,8 @@ class OAuth extends ApiAuth implements AuthInterface
 
         if (isset($this->_access_token)) {
             $oauth['oauth_token'] = $this->_access_token;
-        } elseif (isset($_SESSION['oauth']['token'])) {
-            $oauth['oauth_token'] = $_SESSION['oauth']['token'];
+        } elseif (session()->has('oauth.token')) {
+            $oauth['oauth_token'] = session('oauth.token');
         }
 
         if ($includeCallback) {
@@ -965,7 +976,8 @@ class OAuth extends ApiAuth implements AuthInterface
     protected function log($message)
     {
         if ($this->_debug) {
-            $_SESSION['oauth']['debug']['flow'][date('m-d H:i:s')][] = $message;
+            $SESSION['oauth']['debug']['flow'][date('m-d H:i:s')][] = $message;
+            session($SESSION);
         }
     }
 

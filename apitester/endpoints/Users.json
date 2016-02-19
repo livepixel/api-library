@@ -1,9 +1,0 @@
-[
-    "roles",
-    "roles/{id}",
-    "users",
-    "users/{id}",
-    "users/list/roles",
-    "users/self",
-    "users/{id}/permissioncheck",
-]
