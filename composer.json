@@ -1,8 +1,8 @@
 {
-  "name": "mautic/api-library",
+  "name": "livepixel/laravel-mautic-api",
   "license": "MIT",
   "type": "library",
-  "description": "Mautic API Connector Library",
+  "description": "Mautic API Connector Library for Laravel",
   "autoload": {
     "psr-4": {
       "Mautic\\": "lib/"
@@ -22,5 +22,5 @@
     "raveren/kint": "~0.9",
     "phpunit/phpunit": "~4.8|~5.0"
   },
-  "minimum-stability": "dev" 
+  "minimum-stability": "dev"
 }
